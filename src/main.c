@@ -9,164 +9,172 @@
 
 // Function declarations for builtin shell comands
 int shell_cd(char **args);
+
 int shell_help(char **args);
+
 int shell_exit(char **args);
 
 char *builtin_str[] = {
-  "cd",
-  "help",
-  "exit"
+        "cd",
+        "help",
+        "exit"
 };
 
-int (*builtin_func[]) (char **) = {
-  &shell_cd,
-  &shell_help,
-  &shell_exit
+int (*builtin_func[])(char **) = {
+        &shell_cd,
+        &shell_help,
+        &shell_exit
 };
 
-int shell_num_bultins(){
-  return sizeof(builtin_str) / sizeof(char *);
+int shell_num_bultins() {
+    return sizeof(builtin_str) / sizeof(char *);
 }
 
-int shell_cd(char **args){
-  if(args[1] == NULL){
-    fprintf(stderr,"nztsh: expected argument to \"cd\"\n");
-  } else {
-    if(chdir(args[1]) != 0){
-      perror("nztsh");
+int shell_cd(char **args) {
+    if (args[1] == NULL) {
+        fprintf(stderr, "nztsh: expected argument to \"cd\"\n");
+    } else {
+        if (chdir(args[1]) != 0) {
+            perror("nztsh");
+        }
     }
-  }
-  return 1;
-}
-
-int shell_help(char **args){
-  int i;
-  printf("NZT's shell\n");
-  printf("Type program names and arguments, and hit enter.\n");
-  printf("The following are built in:\n");
-
-  for(int i = 0; i < shell_num_bultins(); i++){
-    printf("  %s\n", builtin_str[i]);
-  }
-
-  printf("Use the man command for information on other programs. \n");
-  return 1;
-}
-
-int shell_exit(char **args){
-  return 0;
-}
-
-int shell_launch(char **args){
-  pid_t pid, wpid;
-  int status;
-
-  pid = fork();
-  if(pid == 0) {
-    // Child process
-    if(execvp(args[0], args) == -1){
-      perror("nztsh");
-    }
-    exit(EXIT_FAILURE);
-  } else if (pid < 0){
-    // Error forking
-    perror("nztsh");
-  } else {
-    // Parent process
-    do {
-      wpid = waitpid(pid, &status, WUNTRACED);
-    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-  }
-
-  return 1;
-}
-
-int shell_execute(char **args){
-  int i;
-
-  if(args[0] == NULL) {
-    // An empty command was entered
     return 1;
-  }
-
-  for(i = 0; i < shell_num_bultins(); i++) {
-    if(strcmp(args[0], builtin_str[i]) == 0 ){
-      return (*builtin_func[i])(args);
-    }
-  }
-
-  return shell_launch(args);
 }
 
-char **shell_split_line(char *line){
+int shell_help(char **args) {
+    int i;
+    printf("NZT's shell\n");
+    printf("Type program names and arguments, and hit enter.\n");
+    printf("The following are built in:\n");
 
-  int bufsize = SH_TOK_BUFSIZE, position = 0;
-  char **tokens = malloc(bufsize * sizeof(char));
-  char *token;
+    for (int i = 0; i < shell_num_bultins(); i++) {
+        printf("  %s\n", builtin_str[i]);
+    }
 
-  if(!tokens){
-    fprintf(stderr, "nztsh: allocation error\n");
-    exit(EXIT_FAILURE);
-  }
+    printf("Use the man command for information on other programs. \n");
+    return 1;
+}
 
-  token = strtok(line, SH_TOK_DELIM);
-  while(token != NULL) {
-    tokens[position] = token;
-    position++;
+int shell_exit(char **args) {
+    return 0;
+}
 
-    if(position >= bufsize){
-      bufsize += SH_TOK_BUFSIZE;
-      tokens = realloc(tokens, bufsize * sizeof(char*));
-      if(!tokens) {
+int shell_launch(char **args) {
+    pid_t pid, wpid;
+    int status;
+
+    pid = fork();
+
+
+    if (pid == 0) {
+        // Child process
+        signal(SIGINT, SIG_DFL);
+        if (execvp(args[0], args) == -1) {
+            perror("nztsh");
+        }
+        signal(SIGINT, SIG_IGN);
+        exit(EXIT_FAILURE);
+    } else if (pid < 0) {
+        // Error forking
+        perror("nztsh");
+    } else {
+        // Parent process
+        do {
+            wpid = waitpid(pid, &status, WUNTRACED);
+        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
+
+    return 1;
+}
+
+int shell_execute(char **args) {
+    int i;
+
+    if (args[0] == NULL) {
+        // An empty command was entered
+        return 1;
+    }
+
+    for (i = 0; i < shell_num_bultins(); i++) {
+        if (strcmp(args[0], builtin_str[i]) == 0) {
+            return (*builtin_func[i])(args);
+        }
+    }
+
+    return shell_launch(args);
+}
+
+char **shell_split_line(char *line) {
+
+    int bufsize = SH_TOK_BUFSIZE, position = 0;
+    char **tokens = malloc(bufsize * sizeof(char));
+    char *token;
+
+    if (!tokens) {
         fprintf(stderr, "nztsh: allocation error\n");
         exit(EXIT_FAILURE);
-      }
     }
 
-    token = strtok(NULL, SH_TOK_DELIM);
-  }
+    token = strtok(line, SH_TOK_DELIM);
+    while (token != NULL) {
+        tokens[position] = token;
+        position++;
 
-  tokens[position] = NULL;
-  return tokens;
+        if (position >= bufsize) {
+            bufsize += SH_TOK_BUFSIZE;
+            tokens = realloc(tokens, bufsize * sizeof(char *));
+            if (!tokens) {
+                fprintf(stderr, "nztsh: allocation error\n");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        token = strtok(NULL, SH_TOK_DELIM);
+    }
+
+    tokens[position] = NULL;
+    return tokens;
 }
 
 
-char *shell_read_line(){
+char *shell_read_line() {
 
-  char *line = NULL;
-  ssize_t bufsize = 0; // have getline allocate a buffer for us
+    char *line = NULL;
+    ssize_t bufsize = 0; // have getline allocate a buffer for us
 
-  getline(&line, &bufsize, stdin);
-  return line;
+    getline(&line, &bufsize, stdin);
+    return line;
 }
 
-void shell_loop(){
+void shell_loop() {
 
-  char *line;
-  char **args;
-  int status;
+    char *line;
+    char **args;
+    int status;
 
-  do {
-    printf("> ");
-    line = shell_read_line();
-    args = shell_split_line(line);
-    status = shell_execute(args);
+    signal(SIGINT, SIG_IGN);
 
-    free(line);
-    free(args);
-  } while(status);
+    do {
+        printf("> ");
+        line = shell_read_line();
+        args = shell_split_line(line);
+        status = shell_execute(args);
+
+        free(line);
+        free(args);
+    } while (status);
 
 }
 
 
-int main(int argc, char **argv){
+int main(int argc, char **argv) {
 
-  // Load config files
+    // Load config files
 
-  // Run command loop
-  shell_loop();
+    // Run command loop
+    shell_loop();
 
-  // Perform any shutdown/cleanup
+    // Perform any shutdown/cleanup
 
-  return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
