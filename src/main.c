@@ -8,11 +8,9 @@
 #define SH_TOK_BUFSIZE 65
 #define SH_TOK_DELIM " \t\r\n\a"
 
-// Function declarations for builtin shell comands
+// Function declarations for builtin shell commands
 int shell_cd(char **args);
-
 int shell_help(char **args);
-
 int shell_exit(char **args);
 
 char *builtin_str[] = {
@@ -73,7 +71,6 @@ int shell_launch(char **args) {
         if (execvp(args[0], args) == -1) {
             perror("nztsh");
         }
-        signal(SIGINT, SIG_IGN);
         exit(EXIT_FAILURE);
     } else if (pid < 0) {
         // Error forking
@@ -141,8 +138,8 @@ char **shell_split_line(char *line) {
 char *shell_read_line() {
 
     char *line = NULL;
-    ssize_t bufsize = 0; // have getline allocate a buffer for us
-
+    ssize_t bufsize = 0;
+    // have getline allocate a buffer for us
     getline(&line, &bufsize, stdin);
     return line;
 }
@@ -154,9 +151,6 @@ void shell_loop() {
     char hostname[HOST_NAME_MAX];
     char username[LOGIN_NAME_MAX];
     int status;
-
-    // Disable killing shell with ctrl-c
-    signal(SIGINT, SIG_IGN);
 
     status = gethostname(hostname, HOST_NAME_MAX);
     if (status){
@@ -186,12 +180,11 @@ void shell_loop() {
 
 int main(int argc, char **argv) {
 
-    // Load config files
+    // Disable SIGINT
+    signal(SIGINT, SIG_IGN);
 
     // Run command loop
     shell_loop();
-
-    // Perform any shutdown/cleanup
 
     return EXIT_SUCCESS;
 }
