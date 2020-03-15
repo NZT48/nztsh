@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #define SH_TOK_BUFSIZE 65
 #define SH_TOK_DELIM " \t\r\n\a"
@@ -150,12 +151,28 @@ void shell_loop() {
 
     char *line;
     char **args;
+    char hostname[HOST_NAME_MAX];
+    char username[LOGIN_NAME_MAX];
     int status;
 
+    // Disable killing shell with ctrl-c
     signal(SIGINT, SIG_IGN);
 
+    status = gethostname(hostname, HOST_NAME_MAX);
+    if (status){
+        perror("gethostname");
+        exit(EXIT_FAILURE);
+    }
+
+    status = getlogin_r(username, LOGIN_NAME_MAX);
+    if (status){
+        perror("getlogin_r");
+        exit(EXIT_FAILURE);
+    }
+
+
     do {
-        printf("> ");
+        printf("%s@%s > ", username, hostname);
         line = shell_read_line();
         args = shell_split_line(line);
         status = shell_execute(args);
